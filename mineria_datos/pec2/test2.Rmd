@@ -3,44 +3,167 @@ title: "Mineria de Datos"
 author: "Luis Enrique Olascoaga Dominguez"
 date: "22/11/2022"
 output:
-  pdf_document: default
   html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## PEC2
+Obtenemos el set de datos llamado "Hawks"
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-
-##PEC2
-Obtenemos el dataset referente a la información de los halcones.
-
-```{r Hawks}
+```{r}
+#Obtenemos librerias a utilizar
+if (!require('cluster')) install.packages('cluster')
+library(cluster)
 if (!require('Stat2Data')) install.packages('Stat2Data')
 library(Stat2Data)
+if (!require('ggplot2')) install.packages('ggplot2')
+library(ggplot2)
+if (!require('fpc')) install.packages('fpc')
+library(fpc)
+
+#Obtenemos el set de datos llamado "Hawks"
 data("Hawks")
 summary(Hawks)
-str(Hawks)
+#{r pressure, echo=FALSE}
 ```
 
+## EDA (exploratory data analysis)
+Obtenemos nombre de las columnas y su tipo de dato
+```{r HawksColumns}
+str(Hawks)
+```
+Observamos en el preview de los datos que las columnas StandardTail, Tarsus, WingPitFat, KeelFat y Crop, contienen datos NA, vamos a revisarlos y a removerlos ya que no se ocuparan para este análsis. Las columnas numericas a utilizar serán:
+
+Wing:   Longitud (en mm) de la pluma principal del ala desde la punta hasta la muñeca a la que se une  
+Weight: Peso corporal (en gm)      
+Culmen: Longitud (en mm) del pico superior desde la punta hasta donde choca con la parte carnosa del ave  
+Hallux: Longitud (en mm) de la garra asesina
+
+Y la calumna que se utilizará para comparar nuestros clusters posteriormente será:
+Species: CH=Halcón de Cooper, RT=Colirrojo, SS=Gavilán
+
+
+La descripción del layout fue obtenida desde:
+https://vincentarelbundock.github.io/Rdatasets/doc/Stat2Data/Hawks.html
+
+Para nuestro análsis vamos a generar 1 dataframe llamado:
+hawks_k_means:    Tendra las columnas Wing, Weigh, Culmen y Hallux
+
+Generamos el dataframe k-means
+```{r }
+  hawks_k_means <- na.omit(Hawks[,10:13])
+  summary(hawks_k_means)
+  
+  hawks_k_original <- na.omit(Hawks[,7:13])
+```
+Cuando reducimos la dimensionalidad de nuestro dataframe, solo dejamos las 4 columnas a ocupar para el modelo k-means. En el summary encontramos que no hay valores en NA o nulos y todos los valores son númericos. 
+
+Revisamos nuevamente el set de datos original
+```{r }
+summary(Hawks)
+```
+Podemos observar que es un set de datos de un modelo supervisado pero para fines de nuestra PEC 2 vamos a ejecutar un modelo no supervisado tomando la columna "Species" como la variable que vamos a predecir. Primeramente observamos 3 valores:  
+CH=Halcón de Cooper
+RT=Colirrojo
+SS=Gavilán 
+Podemos observar que hay más datos para Colirrojo y Gavilán. Vamos a ver como se comporta el algoritmo k-means con esta distribución de datos.
+
+## k-means
+Comenzamos a evaluar el número de cluster que necesitamos para nuestra variable "k"
+```{r}
+distance <- daisy(hawks_k_means) 
+resultados <- rep(0, 10)
+for (i in c(2,3,4,5,6,7,8,9,10))
+{
+  fit           <- kmeans(hawks_k_means, i)
+  y_cluster     <- fit$cluster
+  sk            <- silhouette(y_cluster, distance)
+  resultados[i] <- mean(sk[,3])
+}
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="Silueta")
+```
+De acuerdo a los valores de las siluetas, el mejor valor para "k" es 2 a pesar que hay 3 tipos de especie.
+
+Vamos a verificar el número de cluster mediante el procedimiento elbow (codo).
+
+```{r}
+resultados <- rep(0, 10)
+  for (i in c(2,3,4,5,6,7,8,9,10))
+  {
+    fit           <- kmeans(hawks_k_means, i)
+    resultados[i] <- fit$tot.withinss
+  }
+plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="tot.tot.withinss")
+```
+Como observamos, de acuerdo al método de elbow, el valor mas optimo para "k" podría ser 4 o 6.
+
+Vamos a utilizar los criterios, silueta media (“asw”) y Calinski-Harabasz (“ch”).
+```{r}
+if (!require('fpc')) install.packages('fpc')
+library(fpc)
+
+fit_ch  <- kmeansruns(hawks_k_means, krange = 1:10, criterion = "ch") 
+fit_asw <- kmeansruns(hawks_k_means, krange = 1:10, criterion = "asw")
+
+print(fit_ch$bestk)
+print(fit_asw$bestk)
+
+plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criterio Calinski-Harabasz")
+plot(1:10,fit_asw$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criterio silueta media")
+
+```
+De acuerdo a los criterios ch y asw, el número para "k" podría ser 3, este resultado es el mas cercano al número de especies que ya conocemos. PAra fines de nuestra PEC 2, vamos a continuar con el valor de "k" igual a 3.
+
+
+## Clasificación k-means
+Aplicamos la función de kmeans para 3 clusters
+```{r}
+hawks3clusters <- kmeans(hawks_k_means, 3)
+hawks_k_means$cluster <- as.character(hawks3clusters$cluster)
+hawks3clusters
+```
+
+```{r}
+#Wing and Weight
+#plot(hawks_k_means[c(1,2)], col=hawks3clusters$cluster, main="Clasificación k-means")
+ggplot(hawks_k_means) + geom_point(aes(x=Wing, y=Weight, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
+
+```
+
+```{r}
+#Wing and Weight
+ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Weight, colour=Species), shape=9)+ labs(title= " Clasificación real")
+#plot(hawks_k_original[c(4,5)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
+```
+
+```{r}
+#Hallux and Weight
+#plot(hawks_k_means[c(2,4)], col=hawks3clusters$cluster, main="Clasificación k-means")
+ggplot(hawks_k_means) + geom_point(aes(x=Weight, y=Hallux, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
+
+```
+
+```{r}
+#Hallux and Weight
+#plot(hawks_k_original[c(2,4)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
+ggplot(hawks_k_original) + geom_point(aes(x=Weight, y=Hallux, colour=Species), shape=9)+ labs(title= " Clasificación real")
+
+```
+```{r}
+#Culnmen and Wing
+#plot(hawks_k_means[c(1,3)], col=hawks3clusters$cluster, main="Clasificación k-means")
+ggplot(hawks_k_means) + geom_point(aes(x=Wing, y=Culmen, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
+
+```
+
+```{r}
+#Culnmen and Wing
+#plot(hawks_k_original[c(1,3)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
+ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Culmen, colour=Species), shape=9)+ labs(title= " Clasificación real")
+
+```
+
+En todas las gráficas logramos ver los 3 cluster definidos, resalto el gráfico Hallux y Weight, donde la distribución de los clusters de kmeans con respecto al gráfico real, tienen mas similitud que con los graficos restantes.
 
