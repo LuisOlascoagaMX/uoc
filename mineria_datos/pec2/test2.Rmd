@@ -3,7 +3,7 @@ title: "Mineria de Datos"
 author: "Luis Enrique Olascoaga Dominguez"
 date: "22/11/2022"
 output:
-  html_document: default
+   html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -12,16 +12,29 @@ knitr::opts_chunk$set(echo = TRUE)
 ## PEC2
 Obtenemos el set de datos llamado "Hawks"
 
-```{r}
-#Obtenemos librerias a utilizar
+Obtenemos librerias a utilizar
+```{r pec2}
 if (!require('cluster')) install.packages('cluster')
 library(cluster)
+
 if (!require('Stat2Data')) install.packages('Stat2Data')
 library(Stat2Data)
+
 if (!require('ggplot2')) install.packages('ggplot2')
 library(ggplot2)
+
 if (!require('fpc')) install.packages('fpc')
 library(fpc)
+
+if (!require('dbscan')) install.packages('dbscan')
+library(dbscan)
+
+if (!require('tidyverse')) install.packages('tidyverse')
+library(tidyverse)
+
+
+if (!require('factoextra')) install.packages('factoextra')
+library(factoextra)
 
 #Obtenemos el set de datos llamado "Hawks"
 data("Hawks")
@@ -57,6 +70,12 @@ Generamos el dataframe k-means
   summary(hawks_k_means)
   
   hawks_k_original <- na.omit(Hawks[,7:13])
+  
+  hawks_k_means_dbscan_wing_weight <- na.omit(Hawks[,10:11])
+  hawks_k_means_dbscan_hallux_weight <- na.omit(Hawks[,11:13])
+  hawks_k_means_dbscan_hallux_weight <- na.omit(hawks_k_means_dbscan_hallux_weight[,-2])
+  
+
 ```
 Cuando reducimos la dimensionalidad de nuestro dataframe, solo dejamos las 4 columnas a ocupar para el modelo k-means. En el summary encontramos que no hay valores en NA o nulos y todos los valores son númericos. 
 
@@ -97,7 +116,7 @@ resultados <- rep(0, 10)
   }
 plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="tot.tot.withinss")
 ```
-Como observamos, de acuerdo al método de elbow, el valor mas optimo para "k" podría ser 4 o 6.
+Como observamos, de acuerdo al método de elbow, el valor mas optimo para "k" podría ser 4.
 
 Vamos a utilizar los criterios, silueta media (“asw”) y Calinski-Harabasz (“ch”).
 ```{r}
@@ -166,4 +185,124 @@ ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Culmen, colour=Species), sha
 ```
 
 En todas las gráficas logramos ver los 3 cluster definidos, resalto el gráfico Hallux y Weight, donde la distribución de los clusters de kmeans con respecto al gráfico real, tienen mas similitud que con los graficos restantes.
+
+## dbscan
+```{r}
+eps_plot = kNNdistplot(hawks_k_means_dbscan_wing_weight, k=3)
+eps_plot %>% abline(h = 40, lty = 2)
+
+eps_plot = kNNdistplot(hawks_k_means_dbscan_hallux_weight, k=3)
+eps_plot %>% abline(h = 30, lty = 2)
+```
+```{r}
+wing_weight <- dbscan::dbscan(hawks_k_means_dbscan_wing_weight, eps = 50, MinPts =  5)
+fviz_cluster(wing_weight, hawks_k_means_dbscan_wing_weight, geom = "point")
+```
+
+
+
+```{r}
+hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 50, MinPts =  5)
+fviz_cluster(hallux_weight, hawks_k_means_dbscan_hallux_weight, geom = "point")
+hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 30, MinPts =  6)
+fviz_cluster(hallux_weight, hawks_k_means_dbscan_hallux_weight, geom = "point")
+
+```
+##OPTICS
+```{r}
+hawks_k_means_dbscan_wing_weight_bk <- hawks_k_means_dbscan_wing_weight
+```
+
+```{r}
+hawks_k_means_dbscan_wing_weight <- hawks_k_means_dbscan_wing_weight_bk
+#hawks_k_means_dbscan_wing_weight <- scale(hawks_k_means_dbscan_wing_weight)
+```
+
+
+```{r}
+opctics_wing_weight <- optics(hawks_k_means_dbscan_wing_weight, minPts = 10)
+opctics_wing_weight$order
+plot(opctics_wing_weight)
+```
+```{r}
+plot(hawks_k_means_dbscan_wing_weight, col = "red")
+polygon(hawks_k_means_dbscan_wing_weight[opctics_wing_weight$order,])
+```
+```{r}
+opctics_hallux_weight <- optics(hawks_k_means_dbscan_hallux_weight, minPts = 10)
+opctics_hallux_weight$order
+plot(opctics_hallux_weight)
+```
+
+```{r}
+plot(hawks_k_means_dbscan_hallux_weight, col = "red")
+polygon(hawks_k_means_dbscan_hallux_weight[opctics_hallux_weight$order,])
+```
+##extractDBSCAN
+```{r}
+opctics_hallux_weight_dbscan <- extractDBSCAN(opctics_hallux_weight, eps_cl = 40)
+opctics_hallux_weight_dbscan
+plot(opctics_hallux_weight_dbscan)
+hullplot(hawks_k_means_dbscan_hallux_weight, opctics_hallux_weight_dbscan)
+
+```
+```{r}
+
+opctics_wing_weight_dbscan <- extractDBSCAN(opctics_wing_weight, eps_cl = 50)
+opctics_wing_weight_dbscan
+plot(opctics_wing_weight_dbscan)
+hullplot(hawks_k_means_dbscan_wing_weight, opctics_wing_weight_dbscan)
+```
+```{r}
+opctics_hallux_weight_extractXi <- extractXi(opctics_hallux_weight, xi = .3)
+opctics_hallux_weight_extractXi
+plot(opctics_hallux_weight_extractXi)
+hullplot(hawks_k_means_dbscan_hallux_weight, opctics_hallux_weight_extractXi)
+```
+```{r}
+opctics_wing_weight_extractXi <- extractXi(opctics_wing_weight, xi = .2)
+opctics_wing_weight_extractXi
+plot(opctics_wing_weight_extractXi)
+hullplot(hawks_k_means_dbscan_wing_weight, opctics_wing_weight_extractXi)
+```
+
+## Ventajas y desventajas de k-means
+k-means
+
+Ventajas
+Buen perfomance con grandes volumnes de datos(Datsets)
+Facil de usar
+Clasifica datos aunque estos no tengan algún objetivo definido.
+Facil interpretación
+
+Desventajas
+No hace manejo de los outliers, a todo lo pone en al menos un cluster.
+Solo crea agrupamiento esferico(spherical clusters)
+Resultados diferentes debido a la inicialización aleatoria del centroide.
+
+
+Como mitigar las desventajas
+En los outliers, es algo que se tendría que manejar en el preprocesamiento de los datos, es decir, que cuando apliquemos el algoritmo k-means ya no se tengan dichos outliers.
+Solo se hace el agrupamiento esférico, considerar otro algoritmo en caso de que se requieran otras figuras para representar a los clusters.
+Para el caso de la inicialización aleatoria del centroide, se bucaria dejar fijo las pocisiones, auqnue esto no sea algo común.
+
+
+DBSCAN
+
+Ventajas
+Puede detectar y gráficar figuras complejas.
+No se ve afectado por los outliers.
+El algoritmo y sus parametros son faciles de entender.
+
+Desventajas
+Como la gran mayoria de los algoritmos 
+Puede tener resultados no deterministicos cuando los parametros no son cofnigurados de forma correcta, por ejemplo el valor de epsilon.
+
+Complejidad al determinar valores de sus parametros, epsilon y puntos minimos.
+
+Como mitigar las desventajas
+Realizar varias pruebas al momento de determinar los valores, por ejemplo utilzar la función kNNdistplot para saber el valor de epsilon
+
+
+
 
