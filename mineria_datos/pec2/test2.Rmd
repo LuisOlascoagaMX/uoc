@@ -9,11 +9,9 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-## PEC2
-Obtenemos el set de datos llamado "Hawks"
-
+# PEC2
 Obtenemos librerias a utilizar
-```{r pec2}
+```{r echo = FALSE}
 if (!require('cluster')) install.packages('cluster')
 library(cluster)
 
@@ -36,60 +34,94 @@ library(tidyverse)
 if (!require('factoextra')) install.packages('factoextra')
 library(factoextra)
 
-#Obtenemos el set de datos llamado "Hawks"
+```
+
+# Ejercicio 1
+### Aspectos a evaluar:
+- Se explican los campos de la base de datos
+- Se aplica el algoritmo k-means de forma correcta.
+- Se prueban con diferentes valores de k.
+- Se obtiene una medida de lo bueno que es el agrupamiento.
+- Se describen e interpretan los diferentes clusters obtenidos.
+- Se presenta el código y es fácilmente reproducible.
+
+
+### Obtenemos el set de datos llamado "Hawks":
+```{r}
 data("Hawks")
-summary(Hawks)
-#{r pressure, echo=FALSE}
-```
-
-## EDA (exploratory data analysis)
-Obtenemos nombre de las columnas y su tipo de dato
-```{r HawksColumns}
-str(Hawks)
-```
-Observamos en el preview de los datos que las columnas StandardTail, Tarsus, WingPitFat, KeelFat y Crop, contienen datos NA, vamos a revisarlos y a removerlos ya que no se ocuparan para este análsis. Las columnas numericas a utilizar serán:
-
-Wing:   Longitud (en mm) de la pluma principal del ala desde la punta hasta la muñeca a la que se une  
-Weight: Peso corporal (en gm)      
-Culmen: Longitud (en mm) del pico superior desde la punta hasta donde choca con la parte carnosa del ave  
-Hallux: Longitud (en mm) de la garra asesina
-
-Y la calumna que se utilizará para comparar nuestros clusters posteriormente será:
-Species: CH=Halcón de Cooper, RT=Colirrojo, SS=Gavilán
-
-
-La descripción del layout fue obtenida desde:
-https://vincentarelbundock.github.io/Rdatasets/doc/Stat2Data/Hawks.html
-
-Para nuestro análsis vamos a generar 1 dataframe llamado:
-hawks_k_means:    Tendra las columnas Wing, Weigh, Culmen y Hallux
-
-Generamos el dataframe k-means
-```{r }
-  hawks_k_means <- na.omit(Hawks[,10:13])
-  summary(hawks_k_means)
-  
-  hawks_k_original <- na.omit(Hawks[,7:13])
-  
-  hawks_k_means_dbscan_wing_weight <- na.omit(Hawks[,10:11])
-  hawks_k_means_dbscan_hallux_weight <- na.omit(Hawks[,11:13])
-  hawks_k_means_dbscan_hallux_weight <- na.omit(hawks_k_means_dbscan_hallux_weight[,-2])
-  
-
-```
-Cuando reducimos la dimensionalidad de nuestro dataframe, solo dejamos las 4 columnas a ocupar para el modelo k-means. En el summary encontramos que no hay valores en NA o nulos y todos los valores son númericos. 
-
-Revisamos nuevamente el set de datos original
-```{r }
 summary(Hawks)
 ```
 Podemos observar que es un set de datos de un modelo supervisado pero para fines de nuestra PEC 2 vamos a ejecutar un modelo no supervisado tomando la columna "Species" como la variable que vamos a predecir. Primeramente observamos 3 valores:  
-CH=Halcón de Cooper
-RT=Colirrojo
-SS=Gavilán 
-Podemos observar que hay más datos para Colirrojo y Gavilán. Vamos a ver como se comporta el algoritmo k-means con esta distribución de datos.
 
-## k-means
+- CH=Halcón de Cooper
+- RT=Colirrojo
+- SS=Gavilán 
+
+A continuación el layout y la descripción de los campos(https://vincentarelbundock.github.io/Rdatasets/doc/Stat2Data/Hawks.html): 
+
+- Month:	8=September to 12=December
+- Day:	Date in the month
+- Year:	Year: 1992-2003
+- CaptureTime:	Time of capture (HH:MM)
+- ReleaseTime:	Time of release (HH:MM)
+- BandNumber:	ID band code
+- Species:	CH=Cooper's, RT=Red-tailed, SS=Sharp-Shinned
+- Age:	A=Adult or I=Imature
+- Sex:	F=Female or M=Male
+- Wing:	Length (in mm) of primary wing feather from tip to wrist it attaches to
+- Weight:	Body weight (in gm)
+- Culmen:	Length (in mm) of the upper bill from the tip to where it bumps into the fleshy part of the bird
+- Hallux:	Length (in mm) of the killing talon
+- Tail:	Measurement (in mm) related to the length of the tail (invented at the MacBride Raptor Center)
+- StandardTail:	Standard measurement of tail length (in mm)
+- Tarsus:	Length of the basic foot bone (in mm)
+- WingPitFat:	Amount of fat in the wing pit
+- KeelFat:	Amount of fat on the breastbone (measured by feel
+- Crop:	Amount of material in the crop, coded from 1=full to 0=empty
+
+```{r}
+str(Hawks)
+```
+Observamos en el preview de los datos que las columnas StandardTail, Tarsus, WingPitFat, KeelFat y Crop, contienen datos NA, vamos a removerlos, ya que no se ocuparan para este análisis. Las columnas numericas a utilizar serán:
+
+- Wing:   Longitud (en mm) de la pluma principal del ala desde la punta hasta la muñeca a la que se une  
+- Weight: Peso corporal (en gm)      
+- Culmen: Longitud (en mm) del pico superior desde la punta hasta donde choca con la parte carnosa del ave  
+- Hallux: Longitud (en mm) de la garra asesina
+
+Y la columna que se utilizará para comparar nuestros clusters que vamos a generar con k-means posteriormente, será:
+
+- Species: CH=Halcón de Cooper, RT=Colirrojo, SS=Gavilán
+
+
+
+
+Para nuestro análisis vamos a generar 1 dataframe llamado:
+
+hawks_k_means:    Tendra las columnas Wing, Weigh, Culmen y Hallux
+
+Generamos el dataframe k-means y datasets que vamos a utilizar posteriormente.
+
+```{r }
+  hawks_k_means <- na.omit(Hawks[,10:13])
+  hawks_k_original <- na.omit(Hawks[,7:13])
+  hawks_k_means_dbscan_wing_weight <- na.omit(Hawks[,10:11])
+  hawks_k_means_dbscan_hallux_weight <- na.omit(Hawks[,11:13])
+  hawks_k_means_dbscan_hallux_weight <- na.omit(hawks_k_means_dbscan_hallux_weight[,-2])
+  summary(hawks_k_means)
+```
+
+Cuando reducimos la dimensionalidad de nuestro dataframe, solo dejamos las 4 columnas a ocupar para el modelo k-means. En el summary encontramos que no hay valores en NA o nulos y todos los valores son númericos. 
+
+<!-- Revisamos nuevamente el set de datos original -->
+
+<!-- ```{r } -->
+<!-- summary(Hawks) -->
+<!-- ``` -->
+
+
+
+# k-means
 Comenzamos a evaluar el número de cluster que necesitamos para nuestra variable "k"
 ```{r}
 distance <- daisy(hawks_k_means) 
@@ -103,6 +135,9 @@ for (i in c(2,3,4,5,6,7,8,9,10))
 }
 plot(2:10,resultados[2:10],type="o",col="blue",pch=0,xlab="Número de clusters",ylab="Silueta")
 ```
+
+
+
 De acuerdo a los valores de las siluetas, el mejor valor para "k" es 2 a pesar que hay 3 tipos de especie.
 
 Vamos a verificar el número de cluster mediante el procedimiento elbow (codo).
@@ -133,138 +168,227 @@ plot(1:10,fit_ch$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab
 plot(1:10,fit_asw$crit,type="o",col="blue",pch=0,xlab="Número de clústers",ylab="Criterio silueta media")
 
 ```
-De acuerdo a los criterios ch y asw, el número para "k" podría ser 3, este resultado es el mas cercano al número de especies que ya conocemos. PAra fines de nuestra PEC 2, vamos a continuar con el valor de "k" igual a 3.
 
 
-## Clasificación k-means
-Aplicamos la función de kmeans para 3 clusters
+De acuerdo a los criterios ch y asw, el número para "k" podría ser 3, este resultado es el mas cercano al número de especies que ya conocemos. Para fines de nuestra PEC 2, vamos a continuar con el valor de "k" igual a 3.
+
+
+### Aplicación de algoritmo k-means
+Aplicamos la función de k-means para 3 clusters:
+
+WEIGHT Y WING
 ```{r}
 hawks3clusters <- kmeans(hawks_k_means, 3)
 hawks_k_means$cluster <- as.character(hawks3clusters$cluster)
-hawks3clusters
-```
-
-```{r}
-#Wing and Weight
-#plot(hawks_k_means[c(1,2)], col=hawks3clusters$cluster, main="Clasificación k-means")
 ggplot(hawks_k_means) + geom_point(aes(x=Wing, y=Weight, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
-
-```
-
-```{r}
-#Wing and Weight
 ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Weight, colour=Species), shape=9)+ labs(title= " Clasificación real")
-#plot(hawks_k_original[c(4,5)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
 ```
 
+
+Utilizando las columnas weight y wing, se generan 3 cluster los cuales se encuentran bien diferenciados pero difieren en cierta medida a la clasificación real. Podemos observar que el cluster 2 y 3 practicamente parte en 2 a la specie RT del grafico clasificación real.
+
+
+HALLUX Y WEIGHT
 ```{r}
 #Hallux and Weight
-#plot(hawks_k_means[c(2,4)], col=hawks3clusters$cluster, main="Clasificación k-means")
 ggplot(hawks_k_means) + geom_point(aes(x=Weight, y=Hallux, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
-
-```
-
-```{r}
-#Hallux and Weight
-#plot(hawks_k_original[c(2,4)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
 ggplot(hawks_k_original) + geom_point(aes(x=Weight, y=Hallux, colour=Species), shape=9)+ labs(title= " Clasificación real")
-
 ```
+
+CULMEN Y WING
 ```{r}
-#Culnmen and Wing
-#plot(hawks_k_means[c(1,3)], col=hawks3clusters$cluster, main="Clasificación k-means")
+#Culmen and Wing
 ggplot(hawks_k_means) + geom_point(aes(x=Wing, y=Culmen, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
-
-```
-
-```{r}
-#Culnmen and Wing
-#plot(hawks_k_original[c(1,3)], col=as.factor(hawks_k_original$Species), main="Clasificación real")
 ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Culmen, colour=Species), shape=9)+ labs(title= " Clasificación real")
-
 ```
 
-En todas las gráficas logramos ver los 3 cluster definidos, resalto el gráfico Hallux y Weight, donde la distribución de los clusters de kmeans con respecto al gráfico real, tienen mas similitud que con los graficos restantes.
+En todas las gráficas logramos ver los 3 cluster definidos, pero difieren de la clasificación real en como se estan distribuyendo las especies.
 
-## dbscan
-```{r}
+
+
+Vamos a realizar el mismo ejercicio pero ahora para 4 clusters, solo para Weight and wing:
+WEIGHT Y WING
+
+```{r }
+hawks3clusters <- kmeans(hawks_k_means, 4)
+hawks_k_means$cluster <- as.character(hawks3clusters$cluster)
+ggplot(hawks_k_means) + geom_point(aes(x=Wing, y=Weight, colour=cluster), shape=1) + labs(title= " Clasificación k-means")
+ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Weight, colour=Species), shape=9)+ labs(title= " Clasificación real")
+```
+
+Se observan bien diferenciados los 4 cluster e incluso se obtiene una clasificación mas parecida a la grafica real, la excepción es la especie RT del gráfico real, el algoritmo k-means esta encontrando una clasificación mas que en el dato real.
+
+
+# Ejercicio 2
+
+### Aspectos a evaluar:
+- Se aplican lo algoritmos DBSCAN y OPTICS de forma correcta.
+- Se prueban con diferentes valores de eps.
+- Se obtiene una medida de lo bueno que es el agrupamiento.
+- Se describen e interpretan los diferentes clusters obtenidos.
+- Se presenta el código y es fácilmente reproducible.
+
+
+## Algoritmo DBSCAN
+
+Como primer paso, vamos a usar la función "kNNdistplot" para derterminar el valor de "eps". Comenzamos primero con "WING and WEIGHT" y posteriormente "HALLUX and WEIGHT"
+
+### WING and WEIGHT
+
+```{r echo = FALSE}
 eps_plot = kNNdistplot(hawks_k_means_dbscan_wing_weight, k=3)
 eps_plot %>% abline(h = 40, lty = 2)
-
-eps_plot = kNNdistplot(hawks_k_means_dbscan_hallux_weight, k=3)
-eps_plot %>% abline(h = 30, lty = 2)
 ```
+
+Para este caso tomaremos el valor de eps en 50, que es donde aproximadamente comienza el codo de la curva.
+
+
 ```{r}
 wing_weight <- dbscan::dbscan(hawks_k_means_dbscan_wing_weight, eps = 50, MinPts =  5)
 fviz_cluster(wing_weight, hawks_k_means_dbscan_wing_weight, geom = "point")
+ggplot(hawks_k_original) + geom_point(aes(x=Wing, y=Weight, colour=Species), shape=9)+ labs(title= " Clasificación real")
 ```
 
+Podemos observar que eps con valor de 50(obtenido con la función "kNNdistplot") y el parametro MinPts en 5, se logran formar los 3 cluster que tenemos representados en el gráfico "Clasificación real" e Incluso el algoritmo descarta los outliers(Puntos color negro).
+
+De acuerdo a los graficos, DBSCAN hace una creación de clusters que son muy parecidos a los de la clasificación real.
+
+
+
+
+
+### HALLUX and WEIGHT
+
+```{r}
+eps_plot = kNNdistplot(hawks_k_means_dbscan_hallux_weight, k=3)
+eps_plot %>% abline(h = 30, lty = 2)
+```
+
+Para este caso tomaremos vamos a jugar con el valor en eps primero de 40 y luego de 30, que es donde aproximadamente comienza el codo de la curva.
 
 
 ```{r}
-hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 50, MinPts =  5)
+hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 40, MinPts =  5)
 fviz_cluster(hallux_weight, hawks_k_means_dbscan_hallux_weight, geom = "point")
-hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 30, MinPts =  6)
+
+```
+
+Podemos observar que con un valor de eps en 40 se obtienen los 3 clusters que de antemano conocemos.
+
+
+Hagamos un ejercicio de prueba con un valor de eps en 50
+
+```{r}
+hallux_weight <- dbscan::dbscan(hawks_k_means_dbscan_hallux_weight, eps = 50, MinPts =  6)
 fviz_cluster(hallux_weight, hawks_k_means_dbscan_hallux_weight, geom = "point")
-
-```
-##OPTICS
-```{r}
-hawks_k_means_dbscan_wing_weight_bk <- hawks_k_means_dbscan_wing_weight
 ```
 
+Podemos observar que solo se generaron 2 clusters. Este tipo de algoritmo la desventaja que tiene, es que los valores de eps y minPts son muy sensibles y cualquier variación cambia de forma importante los resultados.
+
+
+
+## Algoritmo OPTICS
+
+Vamos a iniciar con el diagrama de alcanzabilidad en donde los valles van a representar a los clusters, mientras las cimas serán los outliers.
 ```{r}
-hawks_k_means_dbscan_wing_weight <- hawks_k_means_dbscan_wing_weight_bk
+# hawks_k_means_dbscan_wing_weight_bk <- hawks_k_means_dbscan_wing_weight
+```
+
+
+
+```{r}
+# hawks_k_means_dbscan_wing_weight <- hawks_k_means_dbscan_wing_weight_bk
 #hawks_k_means_dbscan_wing_weight <- scale(hawks_k_means_dbscan_wing_weight)
 ```
 
+### WING and WEIGHT
 
 ```{r}
 opctics_wing_weight <- optics(hawks_k_means_dbscan_wing_weight, minPts = 10)
 opctics_wing_weight$order
 plot(opctics_wing_weight)
 ```
+
+Cuanto más denso es un clúster, menores serán las distancias de alcanzabilidad y más bajo es el valle.
+ 
 ```{r}
 plot(hawks_k_means_dbscan_wing_weight, col = "red")
 polygon(hawks_k_means_dbscan_wing_weight[opctics_wing_weight$order,])
 ```
+
+En este diagrama de alcanzabilidad de tipo "Polygon", se comienzan a ver de mejor  forma los clusters que se podrán formar con las trazas de las distancias entre puntos cercanos del mismo cluster.
+
+
+### HALLUX and WEIGHT
+
+Hacemos el mismo ejercicio con las columnas "HALLUX and WEIGHT"
 ```{r}
 opctics_hallux_weight <- optics(hawks_k_means_dbscan_hallux_weight, minPts = 10)
 opctics_hallux_weight$order
 plot(opctics_hallux_weight)
 ```
-
 ```{r}
 plot(hawks_k_means_dbscan_hallux_weight, col = "red")
 polygon(hawks_k_means_dbscan_hallux_weight[opctics_hallux_weight$order,])
 ```
-##extractDBSCAN
+
+
+
+## extractDBSCAN
+
+Extracción de un clustering DBSCAN cortando la alcanzabilidad en el valor eps_cl
+
 ```{r}
 opctics_hallux_weight_dbscan <- extractDBSCAN(opctics_hallux_weight, eps_cl = 40)
 opctics_hallux_weight_dbscan
 plot(opctics_hallux_weight_dbscan)
-hullplot(hawks_k_means_dbscan_hallux_weight, opctics_hallux_weight_dbscan)
-
 ```
-```{r}
 
+Podemos observar que se forman 3 clusters, rojo, verde y azul, recordemos que el color negro son los outliers.
+
+```{r}
+hullplot(hawks_k_means_dbscan_hallux_weight, opctics_hallux_weight_dbscan)
+```
+
+Con este gráfico observamos los 3 clusters que corresponden a las especies CH, SS y RT que se observaron en la "Gráfica real" presentada anteriormente.
+
+
+
+Hacemos el mismo ejercicio con las columnas "WING and WEIGHT"
+```{r}
 opctics_wing_weight_dbscan <- extractDBSCAN(opctics_wing_weight, eps_cl = 50)
 opctics_wing_weight_dbscan
 plot(opctics_wing_weight_dbscan)
 hullplot(hawks_k_means_dbscan_wing_weight, opctics_wing_weight_dbscan)
 ```
+
+### Extracción del clustering jerárquico en función de la variación de la densidad por el método xi
+
+#### HALLUX and WEIGHT
+
 ```{r}
 opctics_hallux_weight_extractXi <- extractXi(opctics_hallux_weight, xi = .3)
 opctics_hallux_weight_extractXi
 plot(opctics_hallux_weight_extractXi)
 hullplot(hawks_k_means_dbscan_hallux_weight, opctics_hallux_weight_extractXi)
 ```
+
+#### WING and WEIGHT
+
 ```{r}
 opctics_wing_weight_extractXi <- extractXi(opctics_wing_weight, xi = .2)
 opctics_wing_weight_extractXi
 plot(opctics_wing_weight_extractXi)
 hullplot(hawks_k_means_dbscan_wing_weight, opctics_wing_weight_extractXi)
 ```
+
+
+
+```{r}
+
+```
+
+
 
 ## Ventajas y desventajas de k-means
 k-means
